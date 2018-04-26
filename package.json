@@ -1,6 +1,6 @@
 {
   "name": "graphql-centrifugo-client",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Client for GraphQL to communicate with centrifugo server.",
   "main": "dist/index.js",
   "repository": {
@@ -57,8 +57,7 @@
     "tslint": "^5.8.0",
     "typescript": "^2.6.2"
   },
-  "optionalDependencies": {
-  },
+  "optionalDependencies": {},
   "typings": "dist/index.d.ts",
   "typescript": {
     "definition": "dist/index.d.ts"
