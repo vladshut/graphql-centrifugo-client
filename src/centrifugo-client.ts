@@ -10,7 +10,7 @@ export interface CentrifugoClientOptions {
     path: string,
     secret: string,
     id: string,
-    onMessage: Function,
+    onMessageCallback?: Function,
     logger?: LoggerInstance,
 }
 
@@ -33,11 +33,11 @@ const enum ConnectionStatus {
  * Additionally client sends periodical ping messages to Centrifugo for keeping connection alive.
  * @url https://fzambia.gitbooks.io/centrifugal/content/mixed/ping.html
  */
-export default class CentrifugoClient {
+export class CentrifugoClient {
     private path: string;
     private id: string;
     private logger: LoggerInstance;
-    private onMessage: Function;
+    private onMessageCallback: Function;
     private tokenGenerator: Token;
     private ws: WebSocket;
     private log: debug.IDebugger;
@@ -57,7 +57,7 @@ export default class CentrifugoClient {
         this.tokenGenerator = new Token(options.secret);
         this.logger = options.logger;
         this.id = options.id;
-        this.onMessage = options.onMessage;
+        this.onMessageCallback = options.onMessageCallback;
         this.log = debug("centrifugo");
     }
 
@@ -124,6 +124,12 @@ export default class CentrifugoClient {
                 this.sendCommand(this.createCommand("unsubscribe", {channel}));
             }
         }
+
+        return this;
+    }
+
+    public setOnMessage(onMessage: Function): this {
+        this.onMessageCallback = onMessage;
 
         return this;
     }
@@ -215,6 +221,14 @@ export default class CentrifugoClient {
                     }
                 }
         }
+    }
+
+    private onMessage (channel: string, message: object): this {
+        if (this.onMessageCallback) {
+            this.onMessageCallback(channel, message);
+        }
+
+        return this;
     }
 
     private createSubscribeCommand(channel: string, last?: string) {

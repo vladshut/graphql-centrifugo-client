@@ -3,14 +3,14 @@ export interface CentrifugoClientOptions {
     path: string;
     secret: string;
     id: string;
-    onMessage: Function;
+    onMessageCallback?: Function;
     logger?: LoggerInstance;
 }
-export default class CentrifugoClient {
+export declare class CentrifugoClient {
     private path;
     private id;
     private logger;
-    private onMessage;
+    private onMessageCallback;
     private tokenGenerator;
     private ws;
     private log;
@@ -26,11 +26,13 @@ export default class CentrifugoClient {
     connect(): this;
     subscribe(channel: string, lastMessageId?: string): this;
     unsubscribe(channel: string): this;
+    setOnMessage(onMessage: Function): this;
     private connectIfDisconnected();
     private reconnect();
     private batchSubscribe();
     private heartbeat();
     private processMessage(message);
+    private onMessage(channel, message);
     private createSubscribeCommand(channel, last?);
     private createCommand(method, params?);
     private sendConnectCommand();

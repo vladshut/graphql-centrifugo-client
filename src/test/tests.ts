@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as sinon from "sinon";
 import { LoggerInstance } from "winston";
 import * as WebSocket from "ws";
-import CentrifugoClient from "../centrifugo-client";
+import { CentrifugoClient } from "../centrifugo-client";
 
 const now = new Date(1522070496648);
 
@@ -29,7 +29,7 @@ describe("Centrifugo", () => {
             path: "ws://localhost:7070/",
             id: "some_id",
             secret: "secret",
-            onMessage: onMessage,
+            onMessageCallback: onMessage,
             logger: {
                 error: (msg: string, ...meta: any[]) => {},
             } as LoggerInstance

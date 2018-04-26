@@ -5,7 +5,6 @@ const sinon = require("sinon");
 const WebSocket = require("ws");
 const centrifugo_client_1 = require("../centrifugo-client");
 const now = new Date(1522070496648);
-const hostname = "my-host-name";
 describe("Centrifugo", () => {
     let sandbox;
     let clock;
@@ -23,12 +22,12 @@ describe("Centrifugo", () => {
             path: "ws://localhost:7070/",
             id: "some_id",
             secret: "secret",
-            onMessage: onMessage,
+            onMessageCallback: onMessage,
             logger: {
                 error: (msg, ...meta) => { },
             }
         };
-        return new centrifugo_client_1.default(centrifugoClientOptions);
+        return new centrifugo_client_1.CentrifugoClient(centrifugoClientOptions);
     }
     describe("Centrifugo subscribe", () => {
         it("should subscribe to channel on disconnected client", (done) => {

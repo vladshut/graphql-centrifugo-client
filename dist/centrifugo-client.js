@@ -24,7 +24,7 @@ class CentrifugoClient {
         this.tokenGenerator = new jscent_1.Token(options.secret);
         this.logger = options.logger;
         this.id = options.id;
-        this.onMessage = options.onMessage;
+        this.onMessageCallback = options.onMessageCallback;
         this.log = debug("centrifugo");
     }
     connect() {
@@ -75,6 +75,10 @@ class CentrifugoClient {
                 this.sendCommand(this.createCommand("unsubscribe", { channel }));
             }
         }
+        return this;
+    }
+    setOnMessage(onMessage) {
+        this.onMessageCallback = onMessage;
         return this;
     }
     connectIfDisconnected() {
@@ -146,6 +150,12 @@ class CentrifugoClient {
                 }
         }
     }
+    onMessage(channel, message) {
+        if (this.onMessageCallback) {
+            this.onMessageCallback(channel, message);
+        }
+        return this;
+    }
     createSubscribeCommand(channel, last) {
         let params = { channel };
         if (last) {
@@ -198,5 +208,5 @@ class CentrifugoClient {
         });
     }
 }
-exports.default = CentrifugoClient;
+exports.CentrifugoClient = CentrifugoClient;
 //# sourceMappingURL=centrifugo-client.js.map
