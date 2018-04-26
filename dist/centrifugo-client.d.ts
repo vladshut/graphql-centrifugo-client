@@ -26,7 +26,8 @@ export declare class CentrifugoClient {
     connect(): this;
     subscribe(channel: string, lastMessageId?: string): this;
     unsubscribe(channel: string): this;
-    setOnMessage(onMessage: Function): this;
+    setOnMessageCallback(onMessage: Function): this;
+    getOnMessageCallback(): Function;
     private connectIfDisconnected();
     private reconnect();
     private batchSubscribe();

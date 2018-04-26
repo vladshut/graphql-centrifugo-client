@@ -77,9 +77,12 @@ class CentrifugoClient {
         }
         return this;
     }
-    setOnMessage(onMessage) {
+    setOnMessageCallback(onMessage) {
         this.onMessageCallback = onMessage;
         return this;
+    }
+    getOnMessageCallback() {
+        return this.onMessageCallback;
     }
     connectIfDisconnected() {
         if (this.connectionStatus == "disconnected") {

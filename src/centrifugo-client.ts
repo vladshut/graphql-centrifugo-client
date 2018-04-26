@@ -128,10 +128,14 @@ export class CentrifugoClient {
         return this;
     }
 
-    public setOnMessage(onMessage: Function): this {
+    public setOnMessageCallback(onMessage: Function): this {
         this.onMessageCallback = onMessage;
 
         return this;
+    }
+
+    public getOnMessageCallback(): Function {
+        return this.onMessageCallback;
     }
 
     private connectIfDisconnected(): this {
