@@ -1,1 +1,1 @@
-import { CentrifugoClient } from "./centrifugo-client";
+export { CentrifugoClient, CentrifugoClientOptions } from "./centrifugo-client";
