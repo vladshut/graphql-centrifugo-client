@@ -128,6 +128,10 @@ export class CentrifugoClient {
         return this;
     }
 
+    public getId(): string {
+        return this.id;
+    }
+
     public setOnMessageCallback(onMessage: Function): this {
         this.onMessageCallback = onMessage;
 
