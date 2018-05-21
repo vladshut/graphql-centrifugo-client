@@ -26,6 +26,7 @@ export declare class CentrifugoClient {
     connect(): this;
     subscribe(channel: string, lastMessageId?: string): this;
     unsubscribe(channel: string): this;
+    getId(): string;
     setOnMessageCallback(onMessage: Function): this;
     getOnMessageCallback(): Function;
     private connectIfDisconnected();
@@ -34,7 +35,7 @@ export declare class CentrifugoClient {
     private heartbeat();
     private processMessage(message);
     private onMessage(channel, message);
-    private createSubscribeCommand(channel, last?);
+    private createSubscribeCommand(centrifugoChannel);
     private createCommand(method, params?);
     private sendConnectCommand();
     private send(data);

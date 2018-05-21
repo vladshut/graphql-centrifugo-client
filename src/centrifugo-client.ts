@@ -26,6 +26,33 @@ const enum ConnectionStatus {
     CONNECTED = "connected",
 }
 
+class CentrifugoChannel {
+    private isNew: boolean = true;
+    private lastMessageId: string;
+    private name: string;
+
+    constructor(name: string, lastMessageId: string = null) {
+        this.name = name;
+        this.lastMessageId = lastMessageId;
+        this.isNew = true;
+    }
+
+    public getParams() {
+        let params = {"channel": this.name};
+
+        if (this.isNew && this.lastMessageId) {
+            params["last"] = this.lastMessageId;
+            params["recover"] = true;
+        }
+
+        return params;
+    }
+
+    public markAsSubscribed() {
+        this.isNew = false;
+    }
+}
+
 /**
  * Connecting after first listener subscription.
  * After connection error set timer to reconnect.
@@ -46,7 +73,7 @@ export class CentrifugoClient {
     private isAlive: boolean = false;
     private heartbeatTimer: Timer;
     private messageCounter = 0;
-    private subscribedChannels = new Map<string, string>();
+    private subscribedChannels = new Map<string, CentrifugoChannel>();
 
     private readonly heartbeatInterval = 30000;
     private readonly subscribeChannelsChunkSize = 100;
@@ -106,10 +133,12 @@ export class CentrifugoClient {
     public subscribe(channel: string, lastMessageId?: string): this {
         this.connectIfDisconnected();
         this.unsubscribe(channel);
-        this.subscribedChannels.set(channel, channel);
+        const centrifugoChannel = new CentrifugoChannel(channel, lastMessageId);
+        this.subscribedChannels.set(channel, centrifugoChannel);
 
         if (this.connectionStatus == ConnectionStatus.CONNECTED) {
-            this.sendCommand(this.createSubscribeCommand(channel, lastMessageId));
+            this.sendCommand(this.createSubscribeCommand(centrifugoChannel));
+            centrifugoChannel.markAsSubscribed();
         }
 
         return this;
@@ -170,6 +199,7 @@ export class CentrifugoClient {
             const command = this.createSubscribeCommand(subscribedChannel);
 
             request.push(command);
+            subscribedChannel.markAsSubscribed();
 
             if (request.length === this.subscribeChannelsChunkSize) {
                 this.sendCommand(request);
@@ -239,13 +269,8 @@ export class CentrifugoClient {
         return this;
     }
 
-    private createSubscribeCommand(channel: string, last?: string) {
-        let params = {channel};
-
-        if (last) {
-            params["last"] = last;
-            params["recover"] = true;
-        }
+    private createSubscribeCommand(centrifugoChannel: CentrifugoChannel) {
+        let params = centrifugoChannel.getParams();
 
         return this.createCommand("subscribe", params);
     }

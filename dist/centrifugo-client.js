@@ -11,6 +11,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const debug = require("debug");
 const jscent_1 = require("jscent");
 const WebSocket = require("ws");
+class CentrifugoChannel {
+    constructor(name, lastMessageId = null) {
+        this.isNew = true;
+        this.name = name;
+        this.lastMessageId = lastMessageId;
+        this.isNew = true;
+    }
+    getParams() {
+        let params = { "channel": this.name };
+        if (this.isNew && this.lastMessageId) {
+            params["last"] = this.lastMessageId;
+            params["recover"] = true;
+        }
+        return params;
+    }
+    markAsSubscribed() {
+        this.isNew = false;
+    }
+}
 class CentrifugoClient {
     constructor(options) {
         this.connectionStatus = "disconnected";
@@ -61,9 +80,11 @@ class CentrifugoClient {
     subscribe(channel, lastMessageId) {
         this.connectIfDisconnected();
         this.unsubscribe(channel);
-        this.subscribedChannels.set(channel, channel);
+        const centrifugoChannel = new CentrifugoChannel(channel, lastMessageId);
+        this.subscribedChannels.set(channel, centrifugoChannel);
         if (this.connectionStatus == "connected") {
-            this.sendCommand(this.createSubscribeCommand(channel, lastMessageId));
+            this.sendCommand(this.createSubscribeCommand(centrifugoChannel));
+            centrifugoChannel.markAsSubscribed();
         }
         return this;
     }
@@ -76,6 +97,9 @@ class CentrifugoClient {
             }
         }
         return this;
+    }
+    getId() {
+        return this.id;
     }
     setOnMessageCallback(onMessage) {
         this.onMessageCallback = onMessage;
@@ -103,6 +127,7 @@ class CentrifugoClient {
         for (const subscribedChannel of subscribedChannels) {
             const command = this.createSubscribeCommand(subscribedChannel);
             request.push(command);
+            subscribedChannel.markAsSubscribed();
             if (request.length === this.subscribeChannelsChunkSize) {
                 this.sendCommand(request);
                 request = [];
@@ -159,12 +184,8 @@ class CentrifugoClient {
         }
         return this;
     }
-    createSubscribeCommand(channel, last) {
-        let params = { channel };
-        if (last) {
-            params["last"] = last;
-            params["recover"] = true;
-        }
+    createSubscribeCommand(centrifugoChannel) {
+        let params = centrifugoChannel.getParams();
         return this.createCommand("subscribe", params);
     }
     createCommand(method, params = null) {

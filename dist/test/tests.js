@@ -80,6 +80,59 @@ describe("Centrifugo", () => {
             initCentrifugoClient().subscribe('channel');
         });
     });
+    describe("Centrifugo subscribe", () => {
+        it("should subscribe to channel with last message id on disconnected client", (done) => {
+            const wss = new WebSocket.Server({ port: 7070 });
+            wss.on("connection", function connection(ws) {
+                ws.on("message", function incoming(message) {
+                    let incomingMessage = JSON.parse(message.toString());
+                    if (Array.isArray(incomingMessage)) {
+                        incomingMessage = incomingMessage[0];
+                    }
+                    switch (incomingMessage.method) {
+                        case "connect":
+                            ws.send(JSON.stringify({
+                                uid: "1",
+                                method: "connect",
+                                body: {
+                                    version: "1.7.3",
+                                    client: "4afc99b7-4066-41b7-adb9-d6a58d611e85",
+                                    expires: false,
+                                    expired: false,
+                                    ttl: 0,
+                                },
+                            }));
+                            break;
+                        case "subscribe":
+                            ws.send(JSON.stringify({
+                                uid: "2",
+                                method: "subscribe",
+                                body: {
+                                    channel: "channel",
+                                    status: true,
+                                    last: "1",
+                                    messages: null,
+                                    recovered: false,
+                                },
+                            }));
+                            const expectedMessage = {
+                                method: "subscribe",
+                                params: {
+                                    channel: "channel",
+                                    last: "1",
+                                    recover: true
+                                },
+                                uid: "2",
+                            };
+                            wss.close(() => done());
+                            chai.expect(incomingMessage).to.deep.equal(expectedMessage);
+                            break;
+                    }
+                });
+            });
+            initCentrifugoClient().subscribe('channel', '1');
+        });
+    });
     describe("Centrifugo emit message", () => {
         it("should emit message", (done) => {
             const wss = new WebSocket.Server({ port: 7070 });
