@@ -54,6 +54,7 @@
     "mocha": "^3.5.3",
     "remap-istanbul": "^0.9.5",
     "simple-mock": "^0.8.0",
+    "ts-node": "^6.0.5",
     "tslint": "^5.8.0",
     "typescript": "^2.6.2"
   },

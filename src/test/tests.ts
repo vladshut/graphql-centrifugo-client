@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as sinon from "sinon";
 import { LoggerInstance } from "winston";
 import * as WebSocket from "ws";
-import { CentrifugoClient } from "../centrifugo-client";
+import {CentrifugoClient, ConnectionStatus} from "../centrifugo-client";
 
 const now = new Date(1522070496648);
 
@@ -360,6 +360,59 @@ describe("Centrifugo", () => {
             });
 
             const centrifugo = initCentrifugoClient().subscribe('channel');
+        });
+    });
+
+    describe("Centrifugo close", () => {
+        it("should close ws connection, set status to closed, set onMessageCallback to null", (done) => {
+            const wss = new WebSocket.Server({ port: 7070 });
+
+            wss.on("connection", function connection(ws) {
+                ws.on("message", function incoming(message) {
+                    let incomingMessage = JSON.parse(message.toString());
+
+                    if (Array.isArray(incomingMessage)) {
+                        incomingMessage = incomingMessage[0];
+                    }
+
+                    switch (incomingMessage.method) {
+                        case "connect":
+                            ws.send(JSON.stringify({
+                                uid: "1",
+                                method: "connect",
+                                body: {
+                                    version: "1.7.3",
+                                    client: "4afc99b7-4066-41b7-adb9-d6a58d611e85",
+                                    expires: false,
+                                    expired: false,
+                                    ttl: 0,
+                                },
+                            }));
+
+                            centrifugo.close();
+
+                            break;
+
+                        case "disconnect":
+                            const expectedMessage = {
+                                method: "disconnect",
+                                uid: "2",
+                                params: null,
+                            };
+
+                            wss.close(() => done());
+
+                            chai.expect(incomingMessage).to.deep.equal(expectedMessage);
+                            chai.expect(centrifugo.getOnMessageCallback()).to.deep.equal(null);
+                            chai.expect(centrifugo.getConnectionStatus()).to.deep.equal(ConnectionStatus.CLOSED);
+                            break;
+                    }
+                });
+            });
+
+            const centrifugo = initCentrifugoClient();
+
+            centrifugo.connect();
         });
     });
 });

@@ -20,10 +20,11 @@ interface ICentrifugoCommand {
     uid: string;
 }
 
-const enum ConnectionStatus {
+export const enum ConnectionStatus {
     DISCONNECTED = "disconnected",
     CONNECTING = "connecting",
     CONNECTED = "connected",
+    CLOSED = "closed",
 }
 
 class CentrifugoChannel {
@@ -90,6 +91,11 @@ export class CentrifugoClient {
 
     public connect(): this {
         this.log("connect");
+
+        if (this.connectionStatus == ConnectionStatus.CLOSED) {
+            this.log("Can't connect - closed");
+            return this;
+        }
 
         this.connectionStatus = ConnectionStatus.CONNECTING;
 
@@ -169,6 +175,22 @@ export class CentrifugoClient {
 
     public getOnMessageCallback(): Function {
         return this.onMessageCallback;
+    }
+
+    public close(): void {
+        this.onMessageCallback = null;
+        this.sendCommand(this.createCommand("disconnect"));
+
+        if (this.ws) {
+            this.ws.close();
+        }
+
+        clearInterval(this.heartbeatTimer);
+        this.connectionStatus = ConnectionStatus.CLOSED;
+    }
+
+    public getConnectionStatus(): string {
+        return this.connectionStatus;
     }
 
     private connectIfDisconnected(): this {
