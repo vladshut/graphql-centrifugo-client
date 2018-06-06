@@ -21,10 +21,10 @@ interface ICentrifugoCommand {
 }
 
 export const enum ConnectionStatus {
-    DISCONNECTED = "disconnected",
-    CONNECTING = "connecting",
-    CONNECTED = "connected",
-    CLOSED = "closed",
+    DISCONNECTED = "DISCONNECTED",
+    CONNECTING = "CONNECTING",
+    CONNECTED = "CONNECTED",
+    CLOSED = "CLOSED",
 }
 
 class CentrifugoChannel {
@@ -90,8 +90,6 @@ export class CentrifugoClient {
     }
 
     public connect(): this {
-        this.log("connect");
-
         if (!this.setConnectionStatus(ConnectionStatus.CONNECTING)) {
             return this;
         }
@@ -122,7 +120,7 @@ export class CentrifugoClient {
         });
 
         this.ws.on("message", (data: string) => {
-            this.log(data);
+            this.log("<- " + data);
 
             const decodedData = JSON.parse(data);
 
@@ -193,9 +191,11 @@ export class CentrifugoClient {
 
     private setConnectionStatus(status: ConnectionStatus): boolean {
         if (this.connectionStatus == ConnectionStatus.CLOSED) {
-            this.log("Can't change 'CLOSED' status.");
+            this.log("!! Can't change 'CLOSED' status to '" + status + "'");
             return false;
         }
+
+        this.log("!! Change status from '" + this.connectionStatus + "' to '" + status + "'");
 
         this.connectionStatus = status;
 
@@ -212,7 +212,7 @@ export class CentrifugoClient {
 
     private reconnect(): this {
         setTimeout(() => {
-            this.log("reconnect");
+            this.log("!! reconnect");
 
             this.connect();
         }, this.reconnectInterval);
@@ -339,7 +339,7 @@ export class CentrifugoClient {
             }
 
             const encodedData = JSON.stringify(data);
-            this.log(encodedData);
+            this.log("-> " + encodedData);
 
             this.ws.send(encodedData, (error) => {
                 if (error) {

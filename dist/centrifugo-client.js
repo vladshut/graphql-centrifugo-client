@@ -32,7 +32,7 @@ class CentrifugoChannel {
 }
 class CentrifugoClient {
     constructor(options) {
-        this.connectionStatus = "disconnected";
+        this.connectionStatus = "DISCONNECTED";
         this.isAlive = false;
         this.messageCounter = 0;
         this.subscribedChannels = new Map();
@@ -47,8 +47,7 @@ class CentrifugoClient {
         this.log = debug("centrifugo");
     }
     connect() {
-        this.log("connect");
-        if (!this.setConnectionStatus("connecting")) {
+        if (!this.setConnectionStatus("CONNECTING")) {
             return this;
         }
         this.ws = new WebSocket(this.path, {
@@ -59,7 +58,7 @@ class CentrifugoClient {
             this.sendConnectCommand();
         });
         this.ws.on("close", () => {
-            if (!this.setConnectionStatus("disconnected")) {
+            if (!this.setConnectionStatus("DISCONNECTED")) {
                 return this;
             }
             clearInterval(this.heartbeatTimer);
@@ -70,7 +69,7 @@ class CentrifugoClient {
             this.logger.error("Centrifugo websocket error", error);
         });
         this.ws.on("message", (data) => {
-            this.log(data);
+            this.log("<- " + data);
             const decodedData = JSON.parse(data);
             if (Array.isArray(decodedData)) {
                 decodedData.forEach((message) => this.processMessage(message));
@@ -86,7 +85,7 @@ class CentrifugoClient {
         this.unsubscribe(channel);
         const centrifugoChannel = new CentrifugoChannel(channel, lastMessageId);
         this.subscribedChannels.set(channel, centrifugoChannel);
-        if (this.connectionStatus == "connected") {
+        if (this.connectionStatus == "CONNECTED") {
             this.sendCommand(this.createSubscribeCommand(centrifugoChannel));
             centrifugoChannel.markAsSubscribed();
         }
@@ -96,7 +95,7 @@ class CentrifugoClient {
         if (this.subscribedChannels.has(channel)) {
             this.connectIfDisconnected();
             this.subscribedChannels.delete(channel);
-            if (this.connectionStatus == "connected") {
+            if (this.connectionStatus == "CONNECTED") {
                 this.sendCommand(this.createCommand("unsubscribe", { channel }));
             }
         }
@@ -113,7 +112,7 @@ class CentrifugoClient {
         return this.onMessageCallback;
     }
     close() {
-        this.setConnectionStatus("closed");
+        this.setConnectionStatus("CLOSED");
         this.onMessageCallback = null;
         clearInterval(this.heartbeatTimer);
         if (this.ws) {
@@ -125,22 +124,23 @@ class CentrifugoClient {
         return this.connectionStatus;
     }
     setConnectionStatus(status) {
-        if (this.connectionStatus == "closed") {
-            this.log("Can't change 'CLOSED' status.");
+        if (this.connectionStatus == "CLOSED") {
+            this.log("!! Can't change 'CLOSED' status to '" + status + "'");
             return false;
         }
+        this.log("!! Change status from '" + this.connectionStatus + "' to '" + status + "'");
         this.connectionStatus = status;
         return true;
     }
     connectIfDisconnected() {
-        if (this.connectionStatus == "disconnected") {
+        if (this.connectionStatus == "DISCONNECTED") {
             this.connect();
         }
         return this;
     }
     reconnect() {
         setTimeout(() => {
-            this.log("reconnect");
+            this.log("!! reconnect");
             this.connect();
         }, this.reconnectInterval);
         return this;
@@ -180,7 +180,7 @@ class CentrifugoClient {
         }
         switch (message.method) {
             case "connect":
-                if (!this.setConnectionStatus("connected")) {
+                if (!this.setConnectionStatus("CONNECTED")) {
                     break;
                 }
                 this.isAlive = true;
@@ -235,11 +235,11 @@ class CentrifugoClient {
     }
     send(data) {
         return new Promise((resolve, reject) => {
-            if (this.connectionStatus == "closed") {
+            if (this.connectionStatus == "CLOSED") {
                 return resolve();
             }
             const encodedData = JSON.stringify(data);
-            this.log(encodedData);
+            this.log("-> " + encodedData);
             this.ws.send(encodedData, (error) => {
                 if (error) {
                     reject(error);

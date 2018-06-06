@@ -340,7 +340,7 @@ describe("Centrifugo", () => {
                 });
                 ws.on("close", () => {
                     chai.expect(centrifugo.getOnMessageCallback()).to.deep.equal(null);
-                    chai.expect(centrifugo.getConnectionStatus()).to.deep.equal("closed");
+                    chai.expect(centrifugo.getConnectionStatus()).to.deep.equal("CLOSED");
                     done();
                 });
             });

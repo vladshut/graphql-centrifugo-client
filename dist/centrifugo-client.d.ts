@@ -7,10 +7,10 @@ export interface CentrifugoClientOptions {
     logger?: LoggerInstance;
 }
 export declare const enum ConnectionStatus {
-    DISCONNECTED = "disconnected",
-    CONNECTING = "connecting",
-    CONNECTED = "connected",
-    CLOSED = "closed",
+    DISCONNECTED = "DISCONNECTED",
+    CONNECTING = "CONNECTING",
+    CONNECTED = "CONNECTED",
+    CLOSED = "CLOSED",
 }
 export declare class CentrifugoClient {
     private path;
