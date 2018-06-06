@@ -92,12 +92,9 @@ export class CentrifugoClient {
     public connect(): this {
         this.log("connect");
 
-        if (this.connectionStatus == ConnectionStatus.CLOSED) {
-            this.log("Can't connect - closed");
+        if (!this.setConnectionStatus(ConnectionStatus.CONNECTING)) {
             return this;
         }
-
-        this.connectionStatus = ConnectionStatus.CONNECTING;
 
         this.ws = new WebSocket(this.path, {
             perMessageDeflate: false,
@@ -109,7 +106,10 @@ export class CentrifugoClient {
         });
 
         this.ws.on("close", () => {
-            this.connectionStatus = ConnectionStatus.DISCONNECTED;
+            if (!this.setConnectionStatus(ConnectionStatus.DISCONNECTED)) {
+                return this;
+            }
+
             clearInterval(this.heartbeatTimer);
 
             this.logger.error("Centrifugo connection closed");
@@ -178,19 +178,28 @@ export class CentrifugoClient {
     }
 
     public close(): void {
+        this.setConnectionStatus(ConnectionStatus.CLOSED);
         this.onMessageCallback = null;
-        this.sendCommand(this.createCommand("disconnect"));
-
+        clearInterval(this.heartbeatTimer);
         if (this.ws) {
             this.ws.close();
+            this.ws = null;
         }
-
-        clearInterval(this.heartbeatTimer);
-        this.connectionStatus = ConnectionStatus.CLOSED;
     }
 
     public getConnectionStatus(): string {
         return this.connectionStatus;
+    }
+
+    private setConnectionStatus(status: ConnectionStatus): boolean {
+        if (this.connectionStatus == ConnectionStatus.CLOSED) {
+            this.log("Can't change 'CLOSED' status.");
+            return false;
+        }
+
+        this.connectionStatus = status;
+
+        return true;
     }
 
     private connectIfDisconnected(): this {
@@ -259,7 +268,10 @@ export class CentrifugoClient {
 
         switch (message.method) {
             case "connect":
-                this.connectionStatus = ConnectionStatus.CONNECTED;
+                if (!this.setConnectionStatus(ConnectionStatus.CONNECTED)) {
+                    break;
+                }
+
                 this.isAlive = true;
 
                 this.heartbeat();
@@ -322,6 +334,10 @@ export class CentrifugoClient {
 
     private send(data: CentrifugoCommand): Promise<void> {
         return new Promise((resolve, reject) => {
+            if (this.connectionStatus == ConnectionStatus.CLOSED) {
+                return resolve();
+            }
+
             const encodedData = JSON.stringify(data);
             this.log(encodedData);
 

@@ -392,21 +392,14 @@ describe("Centrifugo", () => {
                             centrifugo.close();
 
                             break;
-
-                        case "disconnect":
-                            const expectedMessage = {
-                                method: "disconnect",
-                                uid: "2",
-                                params: null,
-                            };
-
-                            wss.close(() => done());
-
-                            chai.expect(incomingMessage).to.deep.equal(expectedMessage);
-                            chai.expect(centrifugo.getOnMessageCallback()).to.deep.equal(null);
-                            chai.expect(centrifugo.getConnectionStatus()).to.deep.equal(ConnectionStatus.CLOSED);
-                            break;
                     }
+                });
+
+                ws.on("close", () => {
+                    chai.expect(centrifugo.getOnMessageCallback()).to.deep.equal(null);
+                    chai.expect(centrifugo.getConnectionStatus()).to.deep.equal(ConnectionStatus.CLOSED);
+
+                    done();
                 });
             });
 

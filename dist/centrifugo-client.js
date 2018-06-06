@@ -48,7 +48,9 @@ class CentrifugoClient {
     }
     connect() {
         this.log("connect");
-        this.connectionStatus = "connecting";
+        if (!this.setConnectionStatus("connecting")) {
+            return this;
+        }
         this.ws = new WebSocket(this.path, {
             perMessageDeflate: false,
             handshakeTimeout: 1000,
@@ -57,7 +59,9 @@ class CentrifugoClient {
             this.sendConnectCommand();
         });
         this.ws.on("close", () => {
-            this.connectionStatus = "disconnected";
+            if (!this.setConnectionStatus("disconnected")) {
+                return this;
+            }
             clearInterval(this.heartbeatTimer);
             this.logger.error("Centrifugo connection closed");
             this.reconnect();
@@ -108,6 +112,26 @@ class CentrifugoClient {
     getOnMessageCallback() {
         return this.onMessageCallback;
     }
+    close() {
+        this.setConnectionStatus("closed");
+        this.onMessageCallback = null;
+        clearInterval(this.heartbeatTimer);
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+    }
+    getConnectionStatus() {
+        return this.connectionStatus;
+    }
+    setConnectionStatus(status) {
+        if (this.connectionStatus == "closed") {
+            this.log("Can't change 'CLOSED' status.");
+            return false;
+        }
+        this.connectionStatus = status;
+        return true;
+    }
     connectIfDisconnected() {
         if (this.connectionStatus == "disconnected") {
             this.connect();
@@ -156,7 +180,9 @@ class CentrifugoClient {
         }
         switch (message.method) {
             case "connect":
-                this.connectionStatus = "connected";
+                if (!this.setConnectionStatus("connected")) {
+                    break;
+                }
                 this.isAlive = true;
                 this.heartbeat();
                 this.batchSubscribe();
@@ -209,6 +235,9 @@ class CentrifugoClient {
     }
     send(data) {
         return new Promise((resolve, reject) => {
+            if (this.connectionStatus == "closed") {
+                return resolve();
+            }
             const encodedData = JSON.stringify(data);
             this.log(encodedData);
             this.ws.send(encodedData, (error) => {

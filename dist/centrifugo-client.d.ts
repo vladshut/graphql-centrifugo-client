@@ -6,6 +6,12 @@ export interface CentrifugoClientOptions {
     onMessageCallback?: Function;
     logger?: LoggerInstance;
 }
+export declare const enum ConnectionStatus {
+    DISCONNECTED = "disconnected",
+    CONNECTING = "connecting",
+    CONNECTED = "connected",
+    CLOSED = "closed",
+}
 export declare class CentrifugoClient {
     private path;
     private id;
@@ -29,6 +35,9 @@ export declare class CentrifugoClient {
     getId(): string;
     setOnMessageCallback(onMessage: Function): this;
     getOnMessageCallback(): Function;
+    close(): void;
+    getConnectionStatus(): string;
+    private setConnectionStatus(status);
     private connectIfDisconnected();
     private reconnect();
     private batchSubscribe();
