@@ -31,6 +31,7 @@ describe("Centrifugo", () => {
             onMessageCallback: onMessage,
             logger: {
                 error: (msg: string, ...meta: any[]) => {},
+                debug: (msg: string, ...meta: any[]) => {},
             } as LoggerInstance
         };
 

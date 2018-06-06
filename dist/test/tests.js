@@ -25,6 +25,7 @@ describe("Centrifugo", () => {
             onMessageCallback: onMessage,
             logger: {
                 error: (msg, ...meta) => { },
+                debug: (msg, ...meta) => { },
             }
         };
         return new centrifugo_client_1.CentrifugoClient(centrifugoClientOptions);

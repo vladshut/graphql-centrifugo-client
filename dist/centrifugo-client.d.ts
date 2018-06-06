@@ -19,7 +19,6 @@ export declare class CentrifugoClient {
     private onMessageCallback;
     private tokenGenerator;
     private ws;
-    private log;
     private connectionStatus;
     private isAlive;
     private heartbeatTimer;
@@ -37,6 +36,8 @@ export declare class CentrifugoClient {
     getOnMessageCallback(): Function;
     close(): void;
     getConnectionStatus(): string;
+    private logMessage(message, data?);
+    private logError(message, data?);
     private setConnectionStatus(status);
     private connectIfDisconnected();
     private reconnect();

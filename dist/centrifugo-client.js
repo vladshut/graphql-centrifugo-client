@@ -8,7 +8,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const debug = require("debug");
 const jscent_1 = require("jscent");
 const WebSocket = require("ws");
 class CentrifugoChannel {
@@ -44,7 +43,6 @@ class CentrifugoClient {
         this.logger = options.logger;
         this.id = options.id;
         this.onMessageCallback = options.onMessageCallback;
-        this.log = debug("centrifugo");
     }
     connect() {
         if (!this.setConnectionStatus("CONNECTING")) {
@@ -62,14 +60,14 @@ class CentrifugoClient {
                 return this;
             }
             clearInterval(this.heartbeatTimer);
-            this.logger.error("Centrifugo connection closed");
+            this.logError("Centrifugo connection closed");
             this.reconnect();
         });
         this.ws.on("error", (error) => {
-            this.logger.error("Centrifugo websocket error", error);
+            this.logError("Centrifugo websocket error", error);
         });
         this.ws.on("message", (data) => {
-            this.log("<- " + data);
+            this.logMessage("<- " + data);
             const decodedData = JSON.parse(data);
             if (Array.isArray(decodedData)) {
                 decodedData.forEach((message) => this.processMessage(message));
@@ -123,12 +121,18 @@ class CentrifugoClient {
     getConnectionStatus() {
         return this.connectionStatus;
     }
+    logMessage(message, data = {}) {
+        this.logger.debug("centrifugo client " + message, data);
+    }
+    logError(message, data = {}) {
+        this.logger.error("centrifugo client ERROR " + message, data);
+    }
     setConnectionStatus(status) {
         if (this.connectionStatus == "CLOSED") {
-            this.log("!! Can't change 'CLOSED' status to '" + status + "'");
+            this.logMessage("!! Can't change 'CLOSED' status to '" + status + "'");
             return false;
         }
-        this.log("!! Change status from '" + this.connectionStatus + "' to '" + status + "'");
+        this.logMessage("!! Change status from '" + this.connectionStatus + "' to '" + status + "'");
         this.connectionStatus = status;
         return true;
     }
@@ -140,7 +144,7 @@ class CentrifugoClient {
     }
     reconnect() {
         setTimeout(() => {
-            this.log("!! reconnect");
+            this.logMessage("!! reconnect");
             this.connect();
         }, this.reconnectInterval);
         return this;
@@ -172,7 +176,7 @@ class CentrifugoClient {
     }
     processMessage(message) {
         if (message.error) {
-            this.logger.error("error", {
+            this.logError("error", {
                 error: message.error,
                 channel: message.body.channel,
             });
@@ -191,7 +195,7 @@ class CentrifugoClient {
                 this.isAlive = true;
                 break;
             case "disconnect":
-                this.logger.error("centrifugo disconnect. reason: " + message.body.reason);
+                this.logError("Received disconnect. Reason: " + message.body.reason);
                 break;
             case "message":
                 this.onMessage(message.body.channel, message.body.data);
@@ -239,7 +243,7 @@ class CentrifugoClient {
                 return resolve();
             }
             const encodedData = JSON.stringify(data);
-            this.log("-> " + encodedData);
+            this.logMessage("-> " + encodedData);
             this.ws.send(encodedData, (error) => {
                 if (error) {
                     reject(error);
@@ -256,7 +260,7 @@ class CentrifugoClient {
                 yield this.send(command);
             }
             catch (error) {
-                this.logger.error("centrifugo websocket send error", error);
+                this.logError("WebSocket send error", error);
             }
         });
     }
