@@ -317,11 +317,16 @@ export class CentrifugoClient {
     private createCommand(method: string, params: any = null): ICentrifugoCommand {
         this.messageCounter++;
 
-        return {
-            method,
-            params,
+        let command = {
             uid: this.messageCounter.toString(),
+            method,
         };
+
+        if (params) {
+            command['params'] = params;
+        }
+
+        return command;
     }
 
     private sendConnectCommand(): void {

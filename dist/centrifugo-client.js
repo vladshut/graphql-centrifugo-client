@@ -220,11 +220,14 @@ class CentrifugoClient {
     }
     createCommand(method, params = null) {
         this.messageCounter++;
-        return {
-            method,
-            params,
+        let command = {
             uid: this.messageCounter.toString(),
+            method,
         };
+        if (params) {
+            command['params'] = params;
+        }
+        return command;
     }
     sendConnectCommand() {
         const user = this.id;
