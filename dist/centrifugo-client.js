@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const jscent_1 = require("jscent");
+const uuid_1 = require("uuid");
 const WebSocket = require("ws");
 class CentrifugoChannel {
     constructor(name, lastMessageId = null) {
@@ -31,6 +32,7 @@ class CentrifugoChannel {
 }
 class CentrifugoClient {
     constructor(options) {
+        this.isClosed = false;
         this.connectionStatus = "DISCONNECTED";
         this.isAlive = false;
         this.messageCounter = 0;
@@ -41,12 +43,20 @@ class CentrifugoClient {
         this.path = options.path;
         this.tokenGenerator = new jscent_1.Token(options.secret);
         this.logger = options.logger;
-        this.id = options.id;
+        this.id = uuid_1.v4();
         this.onMessageCallback = options.onMessageCallback;
     }
     connect() {
         if (!this.setConnectionStatus("CONNECTING")) {
             return this;
+        }
+        this.initWebSocket();
+        return this;
+    }
+    initWebSocket() {
+        if (this.ws) {
+            this.sendConnectCommand();
+            return;
         }
         this.ws = new WebSocket(this.path, {
             perMessageDeflate: false,
@@ -60,8 +70,10 @@ class CentrifugoClient {
                 return this;
             }
             clearInterval(this.heartbeatTimer);
-            this.logError("Centrifugo connection closed");
-            this.reconnect();
+            if (!this.isClosed) {
+                this.logError("Centrifugo connection closed");
+                this.reconnect();
+            }
         });
         this.ws.on("error", (error) => {
             this.logError("Centrifugo websocket error", error);
@@ -76,10 +88,10 @@ class CentrifugoClient {
                 this.processMessage(decodedData);
             }
         });
-        return this;
     }
     subscribe(channel, lastMessageId) {
-        this.connectIfDisconnected();
+        this.isClosed = false;
+        this.connect();
         this.unsubscribe(channel);
         const centrifugoChannel = new CentrifugoChannel(channel, lastMessageId);
         this.subscribedChannels.set(channel, centrifugoChannel);
@@ -91,16 +103,13 @@ class CentrifugoClient {
     }
     unsubscribe(channel) {
         if (this.subscribedChannels.has(channel)) {
-            this.connectIfDisconnected();
+            this.connect();
             this.subscribedChannels.delete(channel);
             if (this.connectionStatus == "CONNECTED") {
                 this.sendCommand(this.createCommand("unsubscribe", { channel }));
             }
         }
         return this;
-    }
-    getId() {
-        return this.id;
     }
     setOnMessageCallback(onMessage) {
         this.onMessageCallback = onMessage;
@@ -110,16 +119,12 @@ class CentrifugoClient {
         return this.onMessageCallback;
     }
     close() {
-        this.setConnectionStatus("CLOSED");
+        this.isClosed = true;
         this.onMessageCallback = null;
-        clearInterval(this.heartbeatTimer);
         if (this.ws) {
             this.ws.close();
             this.ws = null;
         }
-    }
-    getConnectionStatus() {
-        return this.connectionStatus;
     }
     logMessage(message, data = {}) {
         this.logger.debug("centrifugo client " + message, data);
@@ -127,20 +132,21 @@ class CentrifugoClient {
     logError(message, data = {}) {
         this.logger.error("centrifugo client ERROR " + message, data);
     }
+    logCantChangeStatusTo(to, reason) {
+        this.logMessage("!! Change status from '" + this.connectionStatus + "' to '" + to + "'. " + reason);
+    }
     setConnectionStatus(status) {
-        if (this.connectionStatus == "CLOSED") {
-            this.logMessage("!! Can't change 'CLOSED' status to '" + status + "'");
+        if (this.isClosed) {
+            this.logCantChangeStatusTo(status, "Client is closed.");
+            return false;
+        }
+        if (status === "CONNECTING" && this.connectionStatus !== "DISCONNECTED") {
+            this.logCantChangeStatusTo(status);
             return false;
         }
         this.logMessage("!! Change status from '" + this.connectionStatus + "' to '" + status + "'");
         this.connectionStatus = status;
         return true;
-    }
-    connectIfDisconnected() {
-        if (this.connectionStatus == "DISCONNECTED") {
-            this.connect();
-        }
-        return this;
     }
     reconnect() {
         setTimeout(() => {
@@ -151,18 +157,18 @@ class CentrifugoClient {
     }
     batchSubscribe() {
         const subscribedChannels = this.subscribedChannels.values();
-        let request = [];
+        let commands = [];
         for (const subscribedChannel of subscribedChannels) {
             const command = this.createSubscribeCommand(subscribedChannel);
-            request.push(command);
+            commands.push(command);
             subscribedChannel.markAsSubscribed();
-            if (request.length === this.subscribeChannelsChunkSize) {
-                this.sendCommand(request);
-                request = [];
+            if (commands.length === this.subscribeChannelsChunkSize) {
+                this.sendCommand(commands);
+                commands = [];
             }
         }
-        if (request.length > 0) {
-            this.sendCommand(request);
+        if (commands.length > 0) {
+            this.sendCommand(commands);
         }
     }
     heartbeat() {
@@ -171,8 +177,12 @@ class CentrifugoClient {
                 return this.ws.terminate();
             }
             this.isAlive = false;
-            this.sendCommand(this.createCommand("ping"));
+            this.sendPingCommand();
         }, this.heartbeatInterval);
+    }
+    sendPingCommand() {
+        const command = this.createCommand("ping");
+        this.sendCommand(command);
     }
     processMessage(message) {
         if (message.error) {
@@ -212,7 +222,6 @@ class CentrifugoClient {
         if (this.onMessageCallback) {
             this.onMessageCallback(channel, message);
         }
-        return this;
     }
     createSubscribeCommand(centrifugoChannel) {
         let params = centrifugoChannel.getParams();
@@ -242,9 +251,6 @@ class CentrifugoClient {
     }
     send(data) {
         return new Promise((resolve, reject) => {
-            if (this.connectionStatus == "CLOSED") {
-                return resolve();
-            }
             const encodedData = JSON.stringify(data);
             this.logMessage("-> " + encodedData);
             this.ws.send(encodedData, (error) => {

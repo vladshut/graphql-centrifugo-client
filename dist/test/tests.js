@@ -314,7 +314,7 @@ describe("Centrifugo", () => {
         });
     });
     describe("Centrifugo close", () => {
-        it("should close ws connection, set status to closed, set onMessageCallback to null", (done) => {
+        it("should close ws connection, set onMessageCallback to null", (done) => {
             const wss = new WebSocket.Server({ port: 7070 });
             wss.on("connection", function connection(ws) {
                 ws.on("message", function incoming(message) {
@@ -341,7 +341,6 @@ describe("Centrifugo", () => {
                 });
                 ws.on("close", () => {
                     chai.expect(centrifugo.getOnMessageCallback()).to.deep.equal(null);
-                    chai.expect(centrifugo.getConnectionStatus()).to.deep.equal("CLOSED");
                     done();
                 });
             });
