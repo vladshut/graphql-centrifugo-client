@@ -135,12 +135,16 @@ export class CentrifugoClient {
     }
 
     public close(): void {
+        if (this.connectionStatus === ConnectionStatus.CONNECTED) {
+            this.sendCommand(this.createCommand('disconnect'));
+        }
+
         this.isClosed = true;
         this.onMessageCallback = null;
-
-        if (this.ws) {
-            this.ws.close();
-        }
+        this.setConnectionStatus(ConnectionStatus.DISCONNECTED);
+        clearInterval(this.heartbeatTimer);
+        this.ws.close();
+        this.ws = null;
     }
 
     private initWebSocket(): void {
@@ -154,13 +158,8 @@ export class CentrifugoClient {
         });
 
         this.ws.on("close", () => {
-            if (!this.setConnectionStatus(ConnectionStatus.DISCONNECTED)) {
-                return this;
-            }
-
-            clearInterval(this.heartbeatTimer);
-
             if (!this.isClosed) {
+                this.setConnectionStatus(ConnectionStatus.DISCONNECTED);
                 this.logError("Centrifugo connection closed");
                 this.reconnect();
             }
@@ -202,7 +201,7 @@ export class CentrifugoClient {
         }
 
         if (status === ConnectionStatus.CONNECTING && this.connectionStatus !== ConnectionStatus.DISCONNECTED) {
-            this.logCantChangeStatusTo(status);
+            this.logCantChangeStatusTo(status, "Transition failed.");
             return false;
         }
 
@@ -349,10 +348,12 @@ export class CentrifugoClient {
             const encodedData = JSON.stringify(data);
             this.logMessage("-> " + encodedData);
 
+            if (this.isClosed) {
+                return resolve();
+            }
+
             this.ws.send(encodedData, (error) => {
-                if (this.isClosed) {
-                    return resolve();
-                } else if (error) {
+                if (error) {
                     reject(error);
                 } else {
                     resolve();

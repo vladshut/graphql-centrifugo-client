@@ -83,11 +83,15 @@ class CentrifugoClient {
         return this.onMessageCallback;
     }
     close() {
+        if (this.connectionStatus === "CONNECTED") {
+            this.sendCommand(this.createCommand('disconnect'));
+        }
         this.isClosed = true;
         this.onMessageCallback = null;
-        if (this.ws) {
-            this.ws.close();
-        }
+        this.setConnectionStatus("DISCONNECTED");
+        clearInterval(this.heartbeatTimer);
+        this.ws.close();
+        this.ws = null;
     }
     initWebSocket() {
         this.ws = new WebSocket(this.path, {
@@ -98,11 +102,8 @@ class CentrifugoClient {
             this.sendConnectCommand();
         });
         this.ws.on("close", () => {
-            if (!this.setConnectionStatus("DISCONNECTED")) {
-                return this;
-            }
-            clearInterval(this.heartbeatTimer);
             if (!this.isClosed) {
+                this.setConnectionStatus("DISCONNECTED");
                 this.logError("Centrifugo connection closed");
                 this.reconnect();
             }
@@ -136,7 +137,7 @@ class CentrifugoClient {
             return false;
         }
         if (status === "CONNECTING" && this.connectionStatus !== "DISCONNECTED") {
-            this.logCantChangeStatusTo(status);
+            this.logCantChangeStatusTo(status, "Transition failed.");
             return false;
         }
         this.logMessage("!! Change status from '" + this.connectionStatus + "' to '" + status + "'");
@@ -248,11 +249,11 @@ class CentrifugoClient {
         return new Promise((resolve, reject) => {
             const encodedData = JSON.stringify(data);
             this.logMessage("-> " + encodedData);
+            if (this.isClosed) {
+                return resolve();
+            }
             this.ws.send(encodedData, (error) => {
-                if (this.isClosed) {
-                    return resolve();
-                }
-                else if (error) {
+                if (error) {
                     reject(error);
                 }
                 else {
