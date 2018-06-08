@@ -28,12 +28,12 @@ export declare class CentrifugoClient {
     private readonly reconnectInterval;
     constructor(options: CentrifugoClientOptions);
     connect(): this;
-    private initWebSocket();
     subscribe(channel: string, lastMessageId?: string): this;
     unsubscribe(channel: string): this;
     setOnMessageCallback(onMessage: Function): this;
     getOnMessageCallback(): Function;
     close(): void;
+    private initWebSocket();
     private logMessage(message, data?);
     private logError(message, data?);
     private logCantChangeStatusTo(to, reason?);
