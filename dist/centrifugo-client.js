@@ -34,10 +34,8 @@ class CentrifugoClient {
     constructor(options) {
         this.isClosed = false;
         this.connectionStatus = "DISCONNECTED";
-        this.isAlive = false;
         this.messageCounter = 0;
         this.subscribedChannels = new Map();
-        this.heartbeatInterval = 30000;
         this.subscribeChannelsChunkSize = 100;
         this.reconnectInterval = 5000;
         this.path = options.path;
@@ -86,7 +84,6 @@ class CentrifugoClient {
         this.isClosed = true;
         this.onMessageCallback = null;
         this.setConnectionStatus("DISCONNECTED");
-        clearInterval(this.heartbeatTimer);
         if (this.ws) {
             this.ws.removeAllListeners('close');
             if (this.ws.readyState !== this.ws.CONNECTING) {
@@ -105,7 +102,6 @@ class CentrifugoClient {
         });
         this.ws.on("close", (code, message) => {
             if (!this.isClosed) {
-                clearInterval(this.heartbeatTimer);
                 this.setConnectionStatus("DISCONNECTED");
                 this.logError("Centrifugo connection closed. Code: " + code + " Message: " + message);
                 this.reconnect();
@@ -170,19 +166,6 @@ class CentrifugoClient {
             this.sendCommand(commands);
         }
     }
-    heartbeat() {
-        this.heartbeatTimer = setInterval(() => {
-            if (this.isAlive === false) {
-                return this.ws.terminate();
-            }
-            this.isAlive = false;
-            this.sendPingCommand();
-        }, this.heartbeatInterval);
-    }
-    sendPingCommand() {
-        const command = this.createCommand("ping");
-        this.sendCommand(command);
-    }
     processMessage(message) {
         if (message.error) {
             this.logError("error", {
@@ -196,12 +179,7 @@ class CentrifugoClient {
                 if (!this.setConnectionStatus("CONNECTED")) {
                     break;
                 }
-                this.isAlive = true;
-                this.heartbeat();
                 this.batchSubscribe();
-                break;
-            case "ping":
-                this.isAlive = true;
                 break;
             case "disconnect":
                 this.logError("Received disconnect. Reason: " + message.body.reason);

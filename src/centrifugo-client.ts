@@ -2,7 +2,6 @@ import { Token } from "jscent";
 import { LoggerInstance } from "winston";
 import { v4 } from "uuid";
 import * as WebSocket from "ws";
-import Timer = NodeJS.Timer;
 
 type CentrifugoCommand = ICentrifugoCommand | ICentrifugoCommand[];
 
@@ -55,9 +54,6 @@ class CentrifugoChannel {
 /**
  * Connecting after first listener subscription.
  * After connection error set timer to reconnect.
- *
- * Additionally client sends periodical ping messages to Centrifugo for keeping connection alive.
- * @url https://fzambia.gitbooks.io/centrifugal/content/mixed/ping.html
  */
 export class CentrifugoClient {
     private path: string;
@@ -69,12 +65,9 @@ export class CentrifugoClient {
     private isClosed: boolean = false;
 
     private connectionStatus = ConnectionStatus.DISCONNECTED;
-    private isAlive: boolean = false;
-    private heartbeatTimer: Timer;
     private messageCounter = 0;
     private subscribedChannels = new Map<string, CentrifugoChannel>();
 
-    private readonly heartbeatInterval = 30000;
     private readonly subscribeChannelsChunkSize = 100;
     private readonly reconnectInterval = 5000;
 
@@ -138,7 +131,6 @@ export class CentrifugoClient {
         this.isClosed = true;
         this.onMessageCallback = null;
         this.setConnectionStatus(ConnectionStatus.DISCONNECTED);
-        clearInterval(this.heartbeatTimer);
         if (this.ws) {
             this.ws.removeAllListeners('close');
 
@@ -162,7 +154,6 @@ export class CentrifugoClient {
 
         this.ws.on("close", (code, message) => {
             if (!this.isClosed) {
-                clearInterval(this.heartbeatTimer);
                 this.setConnectionStatus(ConnectionStatus.DISCONNECTED);
                 this.logError("Centrifugo connection closed. Code: " + code + " Message: " + message);
                 this.reconnect();
@@ -250,24 +241,6 @@ export class CentrifugoClient {
         }
     }
 
-    private heartbeat() {
-        this.heartbeatTimer = setInterval(() => {
-            if (this.isAlive === false) {
-                return this.ws.terminate();
-            }
-
-            this.isAlive = false;
-
-            this.sendPingCommand();
-        }, this.heartbeatInterval);
-    }
-
-    private sendPingCommand(): void {
-        const command = this.createCommand("ping");
-
-        this.sendCommand(command);
-    }
-
     private processMessage(message: any): void {
         if (message.error) {
             this.logError("error", {
@@ -284,13 +257,7 @@ export class CentrifugoClient {
                     break;
                 }
 
-                this.isAlive = true;
-
-                this.heartbeat();
                 this.batchSubscribe();
-                break;
-            case "ping":
-                this.isAlive = true;
                 break;
             case "disconnect":
                 this.logError("Received disconnect. Reason: " + message.body.reason);

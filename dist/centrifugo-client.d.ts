@@ -19,11 +19,8 @@ export declare class CentrifugoClient {
     private ws;
     private isClosed;
     private connectionStatus;
-    private isAlive;
-    private heartbeatTimer;
     private messageCounter;
     private subscribedChannels;
-    private readonly heartbeatInterval;
     private readonly subscribeChannelsChunkSize;
     private readonly reconnectInterval;
     constructor(options: CentrifugoClientOptions);
@@ -40,8 +37,6 @@ export declare class CentrifugoClient {
     private setConnectionStatus(status);
     private reconnect();
     private batchSubscribe();
-    private heartbeat();
-    private sendPingCommand();
     private processMessage(message);
     private onMessage(channel, message);
     private createSubscribeCommand(centrifugoChannel);
