@@ -1,6 +1,6 @@
 {
   "name": "graphql-centrifugo-client",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Client for GraphQL to communicate with centrifugo server.",
   "main": "dist/index.js",
   "repository": {
