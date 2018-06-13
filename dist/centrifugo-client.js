@@ -90,8 +90,12 @@ class CentrifugoClient {
         this.onMessageCallback = null;
         this.setConnectionStatus("DISCONNECTED");
         clearInterval(this.heartbeatTimer);
-        this.ws.close();
-        this.ws = null;
+        if (this.ws) {
+            if (this.ws.readyState !== this.ws.CONNECTING) {
+                this.ws.close();
+            }
+            this.ws = null;
+        }
     }
     initWebSocket() {
         this.ws = new WebSocket(this.path, {
@@ -169,6 +173,10 @@ class CentrifugoClient {
     }
     heartbeat() {
         this.heartbeatTimer = setInterval(() => {
+            if (this.isClosed) {
+                clearInterval(this.heartbeatTimer);
+                return;
+            }
             if (this.isAlive === false) {
                 return this.ws.terminate();
             }
