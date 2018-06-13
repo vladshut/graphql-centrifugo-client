@@ -83,14 +83,12 @@ class CentrifugoClient {
         return this.onMessageCallback;
     }
     close() {
-        if (this.connectionStatus === "CONNECTED") {
-            this.sendCommand(this.createCommand('disconnect'));
-        }
         this.isClosed = true;
         this.onMessageCallback = null;
         this.setConnectionStatus("DISCONNECTED");
         clearInterval(this.heartbeatTimer);
         if (this.ws) {
+            this.ws.removeAllListeners('close');
             if (this.ws.readyState !== this.ws.CONNECTING) {
                 this.ws.close();
             }
@@ -105,10 +103,11 @@ class CentrifugoClient {
         this.ws.on("open", () => {
             this.sendConnectCommand();
         });
-        this.ws.on("close", () => {
+        this.ws.on("close", (code, message) => {
             if (!this.isClosed) {
+                clearInterval(this.heartbeatTimer);
                 this.setConnectionStatus("DISCONNECTED");
-                this.logError("Centrifugo connection closed");
+                this.logError("Centrifugo connection closed. Code: " + code + " Message: " + message);
                 this.reconnect();
             }
         });
@@ -173,10 +172,6 @@ class CentrifugoClient {
     }
     heartbeat() {
         this.heartbeatTimer = setInterval(() => {
-            if (this.isClosed) {
-                clearInterval(this.heartbeatTimer);
-                return;
-            }
             if (this.isAlive === false) {
                 return this.ws.terminate();
             }

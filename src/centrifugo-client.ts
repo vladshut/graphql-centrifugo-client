@@ -135,15 +135,13 @@ export class CentrifugoClient {
     }
 
     public close(): void {
-        if (this.connectionStatus === ConnectionStatus.CONNECTED) {
-            this.sendCommand(this.createCommand('disconnect'));
-        }
-
         this.isClosed = true;
         this.onMessageCallback = null;
         this.setConnectionStatus(ConnectionStatus.DISCONNECTED);
         clearInterval(this.heartbeatTimer);
         if (this.ws) {
+            this.ws.removeAllListeners('close');
+
             if (this.ws.readyState !== this.ws.CONNECTING) {
                 this.ws.close();
             }
@@ -162,10 +160,11 @@ export class CentrifugoClient {
             this.sendConnectCommand();
         });
 
-        this.ws.on("close", () => {
+        this.ws.on("close", (code, message) => {
             if (!this.isClosed) {
+                clearInterval(this.heartbeatTimer);
                 this.setConnectionStatus(ConnectionStatus.DISCONNECTED);
-                this.logError("Centrifugo connection closed");
+                this.logError("Centrifugo connection closed. Code: " + code + " Message: " + message);
                 this.reconnect();
             }
         });
@@ -253,11 +252,6 @@ export class CentrifugoClient {
 
     private heartbeat() {
         this.heartbeatTimer = setInterval(() => {
-            if (this.isClosed) {
-                clearInterval(this.heartbeatTimer);
-                return;
-            }
-
             if (this.isAlive === false) {
                 return this.ws.terminate();
             }
